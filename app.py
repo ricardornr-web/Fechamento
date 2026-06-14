@@ -164,6 +164,11 @@ with tab_ml:
             st.markdown("**Ricapet**")
             if "ml_token_ricapet" in st.session_state:
                 st.success("✅ Conectado")
+                _rt_r = st.session_state["ml_token_ricapet"].get("refresh_token", "")
+                if _rt_r and not st.secrets.get("ml_ricapet", {}).get("refresh_token"):
+                    with st.expander("💾 Salvar conexão permanente"):
+                        st.caption("Cole em Streamlit → Settings → Secrets, na seção `[ml_ricapet]`:")
+                        st.code(f'refresh_token = "{_rt_r}"', language="toml")
                 if st.button("Desconectar", key="disc_ricapet"):
                     del st.session_state["ml_token_ricapet"]
                     del st.session_state["ml_userid_ricapet"]
@@ -185,6 +190,11 @@ with tab_ml:
             st.markdown("**Thapets**")
             if "ml_token_thapets" in st.session_state:
                 st.success("✅ Conectado")
+                _rt_t = st.session_state["ml_token_thapets"].get("refresh_token", "")
+                if _rt_t and not st.secrets.get("ml_thapets", {}).get("refresh_token"):
+                    with st.expander("💾 Salvar conexão permanente"):
+                        st.caption("Cole em Streamlit → Settings → Secrets, na seção `[ml_thapets]`:")
+                        st.code(f'refresh_token = "{_rt_t}"', language="toml")
                 if st.button("Desconectar", key="disc_thapets"):
                     del st.session_state["ml_token_thapets"]
                     del st.session_state["ml_userid_thapets"]
