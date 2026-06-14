@@ -87,6 +87,7 @@ def get_auth_url(client_id: str, redirect_uri: str, state: str = "",
         f"{OAUTH_URL}?response_type=code"
         f"&client_id={client_id}"
         f"&redirect_uri={redirect_uri}"
+        f"&scope=offline_access"
     )
     if state:
         url += f"&state={state}"
