@@ -25,27 +25,30 @@ def _handle_oauth_callback():
     if not code:
         return
 
+    # state tem formato "ricapet|<verifier>" ou "thapets|<verifier>"
+    parts    = state.split("|", 1)
+    account  = parts[0]
+    verifier = parts[1] if len(parts) > 1 else ""
+
     # Evita reprocessar se já autenticado
-    if state == "ricapet" and "ml_token_ricapet" in st.session_state:
+    if account == "ricapet" and "ml_token_ricapet" in st.session_state:
         st.query_params.clear()
         return
-    if state == "thapets" and "ml_token_thapets" in st.session_state:
+    if account == "thapets" and "ml_token_thapets" in st.session_state:
         st.query_params.clear()
         return
 
     try:
-        if state == "ricapet":
-            cfg      = st.secrets["ml_ricapet"]
-            verifier = st.session_state.pop("pkce_verifier_ricapet", "")
-            tokens   = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
-                                            code, REDIRECT_URI, verifier)
+        if account == "ricapet":
+            cfg    = st.secrets["ml_ricapet"]
+            tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
+                                          code, REDIRECT_URI, verifier)
             st.session_state["ml_token_ricapet"]  = tokens
             st.session_state["ml_userid_ricapet"] = ml_api.get_user_id(tokens["access_token"])
-        elif state == "thapets":
-            cfg      = st.secrets["ml_thapets"]
-            verifier = st.session_state.pop("pkce_verifier_thapets", "")
-            tokens   = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
-                                            code, REDIRECT_URI, verifier)
+        elif account == "thapets":
+            cfg    = st.secrets["ml_thapets"]
+            tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
+                                          code, REDIRECT_URI, verifier)
             st.session_state["ml_token_thapets"]  = tokens
             st.session_state["ml_userid_thapets"] = ml_api.get_user_id(tokens["access_token"])
     except Exception as e:
@@ -99,12 +102,10 @@ with tab_ml:
             else:
                 try:
                     cfg = st.secrets["ml_ricapet"]
-                    if "pkce_verifier_ricapet" not in st.session_state:
-                        v, c = ml_api.generate_pkce()
-                        st.session_state["pkce_verifier_ricapet"]  = v
-                        st.session_state["pkce_challenge_ricapet"] = c
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="ricapet",
-                                              code_challenge=st.session_state["pkce_challenge_ricapet"])
+                    verifier, challenge = ml_api.generate_pkce()
+                    state_r = f"ricapet|{verifier}"
+                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
+                                              state=state_r, code_challenge=challenge)
                     st.link_button("🔗 Conectar conta Ricapet", url)
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
@@ -120,12 +121,10 @@ with tab_ml:
             else:
                 try:
                     cfg = st.secrets["ml_thapets"]
-                    if "pkce_verifier_thapets" not in st.session_state:
-                        v, c = ml_api.generate_pkce()
-                        st.session_state["pkce_verifier_thapets"]  = v
-                        st.session_state["pkce_challenge_thapets"] = c
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="thapets",
-                                              code_challenge=st.session_state["pkce_challenge_thapets"])
+                    verifier, challenge = ml_api.generate_pkce()
+                    state_t = f"thapets|{verifier}"
+                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
+                                              state=state_t, code_challenge=challenge)
                     st.link_button("🔗 Conectar conta Thapets", url)
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
