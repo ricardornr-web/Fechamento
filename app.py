@@ -43,20 +43,43 @@ def _handle_oauth_callback():
             cfg    = st.secrets["ml_ricapet"]
             tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
                                           code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_ricapet"]  = tokens
-            st.session_state["ml_userid_ricapet"] = ml_api.get_user_id(tokens["access_token"])
+            st.session_state["ml_token_ricapet"]       = tokens
+            st.session_state["ml_userid_ricapet"]      = ml_api.get_user_id(tokens["access_token"])
+            st.session_state["ml_new_rt_ricapet"]      = tokens.get("refresh_token", "")
         elif account == "thapets":
             cfg    = st.secrets["ml_thapets"]
             tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
                                           code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_thapets"]  = tokens
-            st.session_state["ml_userid_thapets"] = ml_api.get_user_id(tokens["access_token"])
+            st.session_state["ml_token_thapets"]       = tokens
+            st.session_state["ml_userid_thapets"]      = ml_api.get_user_id(tokens["access_token"])
+            st.session_state["ml_new_rt_thapets"]      = tokens.get("refresh_token", "")
     except Exception as e:
         st.session_state["ml_auth_error"] = str(e)
 
     st.query_params.clear()
 
 _handle_oauth_callback()
+
+# =============================================================================
+# AUTO-LOGIN via refresh_token salvo nos Secrets
+# =============================================================================
+
+def _auto_authenticate():
+    for account, secret_key in [("ricapet", "ml_ricapet"), ("thapets", "ml_thapets")]:
+        if f"ml_token_{account}" in st.session_state:
+            continue
+        try:
+            cfg = st.secrets[secret_key]
+            rt  = cfg.get("refresh_token", "")
+            if not rt:
+                continue
+            tokens = ml_api.refresh_access_token(cfg["client_id"], cfg["client_secret"], rt)
+            st.session_state[f"ml_token_{account}"]  = tokens
+            st.session_state[f"ml_userid_{account}"] = ml_api.get_user_id(tokens["access_token"])
+        except Exception:
+            pass
+
+_auto_authenticate()
 
 # =============================================================================
 # TÍTULO
@@ -131,6 +154,24 @@ with tab_ml:
 
         tem_ricapet = "ml_token_ricapet" in st.session_state
         tem_thapets = "ml_token_thapets" in st.session_state
+
+        # Mostrar refresh tokens novos para o usuário salvar nos Secrets
+        for conta, rt_key, secret_label in [
+            ("Ricapet", "ml_new_rt_ricapet", "ml_ricapet"),
+            ("Thapets", "ml_new_rt_thapets", "ml_thapets"),
+        ]:
+            rt = st.session_state.pop(rt_key, "")
+            if rt:
+                try:
+                    ja_tem = bool(st.secrets[secret_label].get("refresh_token", ""))
+                except Exception:
+                    ja_tem = False
+                if not ja_tem:
+                    st.info(
+                        f"**{conta} conectada!** Para manter o login automático, "
+                        f"adicione nos Secrets do Streamlit (seção `[{secret_label}]`):\n\n"
+                        f"```\nrefresh_token = \"{rt}\"\n```"
+                    )
 
         if tem_ricapet or tem_thapets:
             st.divider()
