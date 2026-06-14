@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from datetime import datetime, date
 
 import ml_core
@@ -14,6 +13,50 @@ st.set_page_config(
     page_icon="📊",
     layout="centered",
 )
+
+# =============================================================================
+# BANCO DE DADOS — Supabase (tokens de conexão ML)
+# =============================================================================
+
+@st.cache_resource
+def _get_supabase():
+    try:
+        from supabase import create_client
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception:
+        return None
+
+
+def _db_save_rt(account: str, refresh_token: str):
+    sb = _get_supabase()
+    if not sb or not refresh_token:
+        return
+    try:
+        sb.table("ml_connections").upsert(
+            {"account": account, "refresh_token": refresh_token}
+        ).execute()
+    except Exception:
+        pass
+
+
+def _db_load_rt(account: str) -> str:
+    sb = _get_supabase()
+    if not sb:
+        return ""
+    try:
+        result = (
+            sb.table("ml_connections")
+            .select("refresh_token")
+            .eq("account", account)
+            .single()
+            .execute()
+        )
+        return (result.data or {}).get("refresh_token", "")
+    except Exception:
+        return ""
+
 
 # =============================================================================
 # CALLBACK OAUTH — roda antes de qualquer renderização
@@ -31,7 +74,6 @@ def _handle_oauth_callback():
     account  = parts[0]
     verifier = parts[1] if len(parts) > 1 else ""
 
-    # Evita reprocessar se já autenticado
     if account == "ricapet" and "ml_token_ricapet" in st.session_state:
         st.query_params.clear()
         return
@@ -44,16 +86,16 @@ def _handle_oauth_callback():
             cfg    = st.secrets["ml_ricapet"]
             tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
                                           code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_ricapet"]       = tokens
-            st.session_state["ml_userid_ricapet"]      = ml_api.get_user_id(tokens["access_token"])
-            st.session_state["ml_new_rt_ricapet"]      = tokens.get("refresh_token", "")
+            st.session_state["ml_token_ricapet"]  = tokens
+            st.session_state["ml_userid_ricapet"] = ml_api.get_user_id(tokens["access_token"])
+            _db_save_rt("ricapet", tokens.get("refresh_token", ""))
         elif account == "thapets":
             cfg    = st.secrets["ml_thapets"]
             tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
                                           code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_thapets"]       = tokens
-            st.session_state["ml_userid_thapets"]      = ml_api.get_user_id(tokens["access_token"])
-            st.session_state["ml_new_rt_thapets"]      = tokens.get("refresh_token", "")
+            st.session_state["ml_token_thapets"]  = tokens
+            st.session_state["ml_userid_thapets"] = ml_api.get_user_id(tokens["access_token"])
+            _db_save_rt("thapets", tokens.get("refresh_token", ""))
     except Exception as e:
         st.session_state["ml_auth_error"] = str(e)
 
@@ -62,7 +104,7 @@ def _handle_oauth_callback():
 _handle_oauth_callback()
 
 # =============================================================================
-# AUTO-LOGIN via refresh_token salvo nos Secrets
+# AUTO-LOGIN via banco de dados (Supabase) ou Secrets como fallback
 # =============================================================================
 
 def _auto_authenticate():
@@ -71,27 +113,19 @@ def _auto_authenticate():
             continue
         try:
             cfg = st.secrets[secret_key]
-            rt  = cfg.get("refresh_token", "")
+            rt  = _db_load_rt(account) or cfg.get("refresh_token", "")
             if not rt:
                 continue
             tokens = ml_api.refresh_access_token(cfg["client_id"], cfg["client_secret"], rt)
             st.session_state[f"ml_token_{account}"]  = tokens
             st.session_state[f"ml_userid_{account}"] = ml_api.get_user_id(tokens["access_token"])
+            new_rt = tokens.get("refresh_token", "")
+            if new_rt and new_rt != rt:
+                _db_save_rt(account, new_rt)
         except Exception:
             pass
 
 _auto_authenticate()
-
-# Redireciona na mesma aba para o OAuth ML (acionado pelos botões de conexão)
-for _acct in ["ricapet", "thapets"]:
-    _rk = f"oauth_redirect_{_acct}"
-    if _rk in st.session_state:
-        _url = st.session_state.pop(_rk)
-        components.html(
-            f'<script>window.parent.location.href = "{_url}";</script>',
-            height=0,
-        )
-        st.stop()
 
 # =============================================================================
 # TÍTULO
@@ -142,7 +176,7 @@ with tab_ml:
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_r, code_challenge=challenge)
                     if st.button("🔗 Conectar conta Ricapet", key="btn_conn_ricapet", type="primary"):
-                        st.session_state["oauth_redirect_ricapet"] = url
+                        st.session_state["_oauth_url"] = url
                         st.rerun()
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
@@ -163,30 +197,22 @@ with tab_ml:
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_t, code_challenge=challenge)
                     if st.button("🔗 Conectar conta Thapets", key="btn_conn_thapets", type="primary"):
-                        st.session_state["oauth_redirect_thapets"] = url
+                        st.session_state["_oauth_url"] = url
                         st.rerun()
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
 
+        # Redireciona na mesma aba via meta refresh (sem iframe, sem JS externo)
+        if "_oauth_url" in st.session_state:
+            oauth_url = st.session_state.pop("_oauth_url")
+            st.markdown(
+                f'<meta http-equiv="refresh" content="0;url={oauth_url}">',
+                unsafe_allow_html=True,
+            )
+            st.stop()
+
         tem_ricapet = "ml_token_ricapet" in st.session_state
         tem_thapets = "ml_token_thapets" in st.session_state
-
-        # Mostrar refresh tokens novos para o usuário salvar nos Secrets
-        for conta, rt_key, secret_label in [
-            ("Ricapet", "ml_new_rt_ricapet", "ml_ricapet"),
-            ("Thapets", "ml_new_rt_thapets", "ml_thapets"),
-        ]:
-            rt = st.session_state.get(rt_key, "")  # .get mantém na sessão até o usuário confirmar
-            if rt:
-                st.warning(
-                    f"⚠️ **Ação necessária — {conta}:** Salve o token abaixo em "
-                    f"**Streamlit → Settings → Secrets**, seção `[{secret_label}]`. "
-                    f"Sem isso a conexão não persiste entre sessões."
-                )
-                st.code(f'refresh_token = "{rt}"', language="toml")
-                if st.button(f"✅ Já salvei o token da {conta}", key=f"confirm_rt_{conta.lower()}"):
-                    del st.session_state[rt_key]
-                    st.rerun()
 
         if tem_ricapet or tem_thapets:
             st.divider()
