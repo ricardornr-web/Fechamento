@@ -129,7 +129,13 @@ with tab_ml:
                     state_r = f"ricapet|{verifier}"
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_r, code_challenge=challenge)
-                    st.link_button("🔗 Conectar conta Ricapet", url)
+                    st.markdown(
+                        f'<a href="{url}" style="display:inline-block;padding:0.35rem 0.75rem;'
+                        f'background:#FF4B4B;color:#fff!important;text-decoration:none;'
+                        f'border-radius:6px;font-size:0.875rem;font-weight:500">'
+                        f'🔗 Conectar conta Ricapet</a>',
+                        unsafe_allow_html=True,
+                    )
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
 
@@ -148,7 +154,13 @@ with tab_ml:
                     state_t = f"thapets|{verifier}"
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_t, code_challenge=challenge)
-                    st.link_button("🔗 Conectar conta Thapets", url)
+                    st.markdown(
+                        f'<a href="{url}" style="display:inline-block;padding:0.35rem 0.75rem;'
+                        f'background:#FF4B4B;color:#fff!important;text-decoration:none;'
+                        f'border-radius:6px;font-size:0.875rem;font-weight:500">'
+                        f'🔗 Conectar conta Thapets</a>',
+                        unsafe_allow_html=True,
+                    )
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
 
