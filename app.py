@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import datetime, date
 
 import ml_core
@@ -81,6 +82,17 @@ def _auto_authenticate():
 
 _auto_authenticate()
 
+# Redireciona na mesma aba para o OAuth ML (acionado pelos botões de conexão)
+for _acct in ["ricapet", "thapets"]:
+    _rk = f"oauth_redirect_{_acct}"
+    if _rk in st.session_state:
+        _url = st.session_state.pop(_rk)
+        components.html(
+            f'<script>window.parent.location.href = "{_url}";</script>',
+            height=0,
+        )
+        st.stop()
+
 # =============================================================================
 # TÍTULO
 # =============================================================================
@@ -129,13 +141,9 @@ with tab_ml:
                     state_r = f"ricapet|{verifier}"
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_r, code_challenge=challenge)
-                    st.markdown(
-                        f'<a href="{url}" style="display:inline-block;padding:0.35rem 0.75rem;'
-                        f'background:#FF4B4B;color:#fff!important;text-decoration:none;'
-                        f'border-radius:6px;font-size:0.875rem;font-weight:500">'
-                        f'🔗 Conectar conta Ricapet</a>',
-                        unsafe_allow_html=True,
-                    )
+                    if st.button("🔗 Conectar conta Ricapet", key="btn_conn_ricapet", type="primary"):
+                        st.session_state["oauth_redirect_ricapet"] = url
+                        st.rerun()
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
 
@@ -154,13 +162,9 @@ with tab_ml:
                     state_t = f"thapets|{verifier}"
                     url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
                                               state=state_t, code_challenge=challenge)
-                    st.markdown(
-                        f'<a href="{url}" style="display:inline-block;padding:0.35rem 0.75rem;'
-                        f'background:#FF4B4B;color:#fff!important;text-decoration:none;'
-                        f'border-radius:6px;font-size:0.875rem;font-weight:500">'
-                        f'🔗 Conectar conta Thapets</a>',
-                        unsafe_allow_html=True,
-                    )
+                    if st.button("🔗 Conectar conta Thapets", key="btn_conn_thapets", type="primary"):
+                        st.session_state["oauth_redirect_thapets"] = url
+                        st.rerun()
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
 
