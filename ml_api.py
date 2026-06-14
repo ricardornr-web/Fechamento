@@ -22,8 +22,8 @@ from openpyxl.styles import PatternFill
 # ---------------------------------------------------------------------------
 
 OAUTH_URL = "https://auth.mercadolivre.com.br/authorization"
-TOKEN_URL = "https://api.mercadolivre.com.br/oauth/token"
-API_BASE  = "https://api.mercadolivre.com.br"
+TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
+API_BASE  = "https://api.mercadolibre.com"
 
 COR_MAE   = "FFB7B7B7"
 COR_FILHO = "FFF3F3F3"
