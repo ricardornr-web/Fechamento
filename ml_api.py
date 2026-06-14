@@ -70,47 +70,20 @@ HEADERS_ML = [
 # OAuth
 # ---------------------------------------------------------------------------
 
-def get_auth_url(client_id: str, redirect_uri: str, state: str = "") -> str:
-    url = (
-        f"{OAUTH_URL}?response_type=code"
-        f"&client_id={client_id}"
-        f"&redirect_uri={redirect_uri}"
-    )
-    if state:
-        url += f"&state={state}"
-    return url
-
-
-def exchange_code(client_id: str, client_secret: str, code: str, redirect_uri: str) -> dict:
+def get_app_token(client_id: str, client_secret: str) -> tuple:
+    """
+    Obtém token de acesso para a conta proprietária do app (grant_type=client_credentials).
+    Não requer redirect URI nem login do usuário — funciona direto com client_id e client_secret.
+    Retorna (access_token: str, user_id: int).
+    """
     resp = requests.post(TOKEN_URL, data={
-        "grant_type":    "authorization_code",
+        "grant_type":    "client_credentials",
         "client_id":     client_id,
         "client_secret": client_secret,
-        "code":          code,
-        "redirect_uri":  redirect_uri,
     })
     resp.raise_for_status()
-    return resp.json()
-
-
-def refresh_access_token(client_id: str, client_secret: str, refresh_tok: str) -> dict:
-    resp = requests.post(TOKEN_URL, data={
-        "grant_type":    "refresh_token",
-        "client_id":     client_id,
-        "client_secret": client_secret,
-        "refresh_token": refresh_tok,
-    })
-    resp.raise_for_status()
-    return resp.json()
-
-
-def get_user_id(access_token: str) -> int:
-    resp = requests.get(
-        f"{API_BASE}/users/me",
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
-    resp.raise_for_status()
-    return resp.json()["id"]
+    data = resp.json()
+    return data["access_token"], data["user_id"]
 
 
 # ---------------------------------------------------------------------------
