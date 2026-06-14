@@ -160,18 +160,17 @@ with tab_ml:
             ("Ricapet", "ml_new_rt_ricapet", "ml_ricapet"),
             ("Thapets", "ml_new_rt_thapets", "ml_thapets"),
         ]:
-            rt = st.session_state.pop(rt_key, "")
+            rt = st.session_state.get(rt_key, "")  # .get mantém na sessão até o usuário confirmar
             if rt:
-                try:
-                    ja_tem = bool(st.secrets[secret_label].get("refresh_token", ""))
-                except Exception:
-                    ja_tem = False
-                if not ja_tem:
-                    st.info(
-                        f"**{conta} conectada!** Para manter o login automático, "
-                        f"adicione nos Secrets do Streamlit (seção `[{secret_label}]`):\n\n"
-                        f"```\nrefresh_token = \"{rt}\"\n```"
-                    )
+                st.warning(
+                    f"⚠️ **Ação necessária — {conta}:** Salve o token abaixo em "
+                    f"**Streamlit → Settings → Secrets**, seção `[{secret_label}]`. "
+                    f"Sem isso a conexão não persiste entre sessões."
+                )
+                st.code(f'refresh_token = "{rt}"', language="toml")
+                if st.button(f"✅ Já salvei o token da {conta}", key=f"confirm_rt_{conta.lower()}"):
+                    del st.session_state[rt_key]
+                    st.rerun()
 
         if tem_ricapet or tem_thapets:
             st.divider()
