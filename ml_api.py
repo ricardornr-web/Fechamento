@@ -10,7 +10,10 @@ Funções públicas:
   orders_to_excel_bytes(orders, empresa) -> bytes
 """
 
+import base64
+import hashlib
 import io
+import secrets
 from datetime import datetime
 
 import requests
@@ -70,7 +73,16 @@ HEADERS_ML = [
 # OAuth
 # ---------------------------------------------------------------------------
 
-def get_auth_url(client_id: str, redirect_uri: str, state: str = "") -> str:
+def generate_pkce() -> tuple:
+    """Gera (code_verifier, code_challenge) para o fluxo PKCE."""
+    verifier  = secrets.token_urlsafe(43)
+    digest    = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
+
+
+def get_auth_url(client_id: str, redirect_uri: str, state: str = "",
+                 code_challenge: str = "") -> str:
     url = (
         f"{OAUTH_URL}?response_type=code"
         f"&client_id={client_id}"
@@ -78,17 +90,23 @@ def get_auth_url(client_id: str, redirect_uri: str, state: str = "") -> str:
     )
     if state:
         url += f"&state={state}"
+    if code_challenge:
+        url += f"&code_challenge={code_challenge}&code_challenge_method=S256"
     return url
 
 
-def exchange_code(client_id: str, client_secret: str, code: str, redirect_uri: str) -> dict:
-    resp = requests.post(TOKEN_URL, data={
+def exchange_code(client_id: str, client_secret: str, code: str,
+                  redirect_uri: str, code_verifier: str = "") -> dict:
+    data = {
         "grant_type":    "authorization_code",
         "client_id":     client_id,
         "client_secret": client_secret,
         "code":          code,
         "redirect_uri":  redirect_uri,
-    })
+    }
+    if code_verifier:
+        data["code_verifier"] = code_verifier
+    resp = requests.post(TOKEN_URL, data=data)
     if not resp.ok:
         raise Exception(f"ML token error {resp.status_code}: {resp.text}")
     return resp.json()

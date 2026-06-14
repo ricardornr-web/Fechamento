@@ -35,13 +35,17 @@ def _handle_oauth_callback():
 
     try:
         if state == "ricapet":
-            cfg    = st.secrets["ml_ricapet"]
-            tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"], code, REDIRECT_URI)
+            cfg      = st.secrets["ml_ricapet"]
+            verifier = st.session_state.pop("pkce_verifier_ricapet", "")
+            tokens   = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
+                                            code, REDIRECT_URI, verifier)
             st.session_state["ml_token_ricapet"]  = tokens
             st.session_state["ml_userid_ricapet"] = ml_api.get_user_id(tokens["access_token"])
         elif state == "thapets":
-            cfg    = st.secrets["ml_thapets"]
-            tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"], code, REDIRECT_URI)
+            cfg      = st.secrets["ml_thapets"]
+            verifier = st.session_state.pop("pkce_verifier_thapets", "")
+            tokens   = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
+                                            code, REDIRECT_URI, verifier)
             st.session_state["ml_token_thapets"]  = tokens
             st.session_state["ml_userid_thapets"] = ml_api.get_user_id(tokens["access_token"])
     except Exception as e:
@@ -95,7 +99,12 @@ with tab_ml:
             else:
                 try:
                     cfg = st.secrets["ml_ricapet"]
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="ricapet")
+                    if "pkce_verifier_ricapet" not in st.session_state:
+                        v, c = ml_api.generate_pkce()
+                        st.session_state["pkce_verifier_ricapet"]  = v
+                        st.session_state["pkce_challenge_ricapet"] = c
+                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="ricapet",
+                                              code_challenge=st.session_state["pkce_challenge_ricapet"])
                     st.link_button("🔗 Conectar conta Ricapet", url)
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
@@ -111,7 +120,12 @@ with tab_ml:
             else:
                 try:
                     cfg = st.secrets["ml_thapets"]
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="thapets")
+                    if "pkce_verifier_thapets" not in st.session_state:
+                        v, c = ml_api.generate_pkce()
+                        st.session_state["pkce_verifier_thapets"]  = v
+                        st.session_state["pkce_challenge_thapets"] = c
+                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI, state="thapets",
+                                              code_challenge=st.session_state["pkce_challenge_thapets"])
                     st.link_button("🔗 Conectar conta Thapets", url)
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
