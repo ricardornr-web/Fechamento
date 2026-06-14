@@ -168,9 +168,13 @@ with tab_ml:
                 _rt_r  = _tok_r.get("refresh_token", "")
                 if _rt_r:
                     st.warning("⚠️ Salve nos Secrets (`[ml_ricapet]`) para manter conectado:")
-                    st.code(f'refresh_token = "{_rt_r}"', language="toml")
+                    st.text_area("Copie o valor abaixo:", value=_rt_r, height=68, key="rt_r_display")
                 else:
-                    st.error(f"Sem refresh_token. Campos recebidos: {list(_tok_r.keys())}")
+                    st.error(
+                        f"Sem refresh_token. "
+                        f"Campos: {list(_tok_r.keys())} | "
+                        f"scope: {_tok_r.get('scope', '???')}"
+                    )
                 if st.button("Desconectar", key="disc_ricapet"):
                     del st.session_state["ml_token_ricapet"]
                     del st.session_state["ml_userid_ricapet"]
@@ -196,7 +200,7 @@ with tab_ml:
                 _rt_t  = _tok_t.get("refresh_token", "")
                 if _rt_t:
                     st.warning("⚠️ Salve nos Secrets (`[ml_thapets]`) para manter conectado:")
-                    st.code(f'refresh_token = "{_rt_t}"', language="toml")
+                    st.text_area("Copie o valor abaixo:", value=_rt_t, height=68, key="rt_t_display")
                 else:
                     st.error(f"Sem refresh_token. Campos recebidos: {list(_tok_t.keys())}")
                 if st.button("Desconectar", key="disc_thapets"):
