@@ -219,6 +219,7 @@ with tab_ml:
                             if tem_ricapet:
                                 tok = st.session_state["ml_token_ricapet"]
                                 uid = st.session_state["ml_userid_ricapet"]
+                                st.info(f"🔍 Ricapet user_id: {uid}")
                                 ords = ml_api.fetch_orders(tok["access_token"], uid, from_str, to_str)
                                 st.info(f"Ricapet: {len(ords)} pedido(s) encontrado(s)")
                                 if ords:
@@ -229,6 +230,7 @@ with tab_ml:
                             if tem_thapets:
                                 tok = st.session_state["ml_token_thapets"]
                                 uid = st.session_state["ml_userid_thapets"]
+                                st.info(f"🔍 Thapets user_id: {uid}")
                                 ords = ml_api.fetch_orders(tok["access_token"], uid, from_str, to_str)
                                 st.info(f"Thapets: {len(ords)} pedido(s) encontrado(s)")
                                 if ords:
