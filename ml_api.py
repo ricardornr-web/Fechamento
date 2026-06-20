@@ -126,10 +126,6 @@ def get_user_id(access_token: str) -> int:
 
 
 def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str) -> list:
-    """
-    date_from / date_to: strings ISO8601, ex. "2024-01-01T00:00:00.000-03:00"
-    Retorna lista de dicts de pedidos da API do ML.
-    """
     headers = {"Authorization": f"Bearer {access_token}"}
     orders  = []
     offset  = 0
@@ -139,8 +135,8 @@ def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str
         url = (
             f"{API_BASE}/orders/search"
             f"?seller={seller_id}"
-            f"&date_closed.from={date_from}"
-            f"&date_closed.to={date_to}"
+            f"&date_created.from={date_from}"
+            f"&date_created.to={date_to}"
             f"&sort=date_asc"
             f"&limit={limit}&offset={offset}"
         )
