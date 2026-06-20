@@ -5,7 +5,6 @@ import ml_core
 import ml_api
 import shopee_core
 
-# URI deve bater exatamente com o cadastrado no portal ML (com barra no final)
 REDIRECT_URI = "https://fechamento-ke6rzovxkuvjudzaug6pyu.streamlit.app/"
 
 st.set_page_config(
@@ -13,10 +12,6 @@ st.set_page_config(
     page_icon="📊",
     layout="centered",
 )
-
-# =============================================================================
-# BANCO DE DADOS — Supabase (tokens de conexão ML)
-# =============================================================================
 
 @st.cache_resource
 def _get_supabase():
@@ -58,10 +53,6 @@ def _db_load_rt(account: str) -> str:
         return ""
 
 
-# =============================================================================
-# CALLBACK OAUTH — roda antes de qualquer renderização
-# =============================================================================
-
 def _handle_oauth_callback():
     code  = st.query_params.get("code")
     state = st.query_params.get("state", "")
@@ -69,7 +60,6 @@ def _handle_oauth_callback():
     if not code:
         return
 
-    # state tem formato "ricapet|<verifier>" ou "thapets|<verifier>"
     parts    = state.split("|", 1)
     account  = parts[0]
     verifier = parts[1] if len(parts) > 1 else ""
@@ -103,9 +93,6 @@ def _handle_oauth_callback():
 
 _handle_oauth_callback()
 
-# =============================================================================
-# AUTO-LOGIN via banco de dados (Supabase) ou Secrets como fallback
-# =============================================================================
 
 def _auto_authenticate():
     for account, secret_key in [("ricapet", "ml_ricapet"), ("thapets", "ml_thapets")]:
@@ -127,18 +114,10 @@ def _auto_authenticate():
 
 _auto_authenticate()
 
-# =============================================================================
-# TÍTULO
-# =============================================================================
-
 st.title("📊 Consolidador de Fechamento")
 st.caption("Mercado Livre e Shopee — Ricapet & Thapets")
 
 tab_ml, tab_sp = st.tabs(["🛒 Mercado Livre", "🏪 Shopee"])
-
-# =============================================================================
-# ABA MERCADO LIVRE
-# =============================================================================
 
 with tab_ml:
     st.subheader("Consolidar Mercado Livre")
@@ -150,9 +129,6 @@ with tab_ml:
         label_visibility="collapsed",
     )
 
-    # ------------------------------------------------------------------
-    # MODO API
-    # ------------------------------------------------------------------
     if modo_ml == "🔗 Buscar direto da plataforma (API)":
 
         if st.session_state.get("ml_auth_error"):
@@ -164,17 +140,6 @@ with tab_ml:
             st.markdown("**Ricapet**")
             if "ml_token_ricapet" in st.session_state:
                 st.success("✅ Conectado")
-                _tok_r = st.session_state.get("ml_token_ricapet") or {}
-                _rt_r  = _tok_r.get("refresh_token", "")
-                if _rt_r:
-                    st.warning("⚠️ Salve nos Secrets (`[ml_ricapet]`) para manter conectado:")
-                    st.text_area("Copie o valor abaixo:", value=_rt_r, height=68, key="rt_r_display")
-                else:
-                    st.error(
-                        f"Sem refresh_token. "
-                        f"Campos: {list(_tok_r.keys())} | "
-                        f"scope: {_tok_r.get('scope', '???')}"
-                    )
                 if st.button("Desconectar", key="disc_ricapet"):
                     del st.session_state["ml_token_ricapet"]
                     del st.session_state["ml_userid_ricapet"]
@@ -196,13 +161,6 @@ with tab_ml:
             st.markdown("**Thapets**")
             if "ml_token_thapets" in st.session_state:
                 st.success("✅ Conectado")
-                _tok_t = st.session_state.get("ml_token_thapets") or {}
-                _rt_t  = _tok_t.get("refresh_token", "")
-                if _rt_t:
-                    st.warning("⚠️ Salve nos Secrets (`[ml_thapets]`) para manter conectado:")
-                    st.text_area("Copie o valor abaixo:", value=_rt_t, height=68, key="rt_t_display")
-                else:
-                    st.error(f"Sem refresh_token. Campos recebidos: {list(_tok_t.keys())}")
                 if st.button("Desconectar", key="disc_thapets"):
                     del st.session_state["ml_token_thapets"]
                     del st.session_state["ml_userid_thapets"]
@@ -220,7 +178,6 @@ with tab_ml:
                 except (KeyError, FileNotFoundError):
                     st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
 
-        # Redireciona na mesma aba via meta refresh (sem iframe, sem JS externo)
         if "_oauth_url" in st.session_state:
             oauth_url = st.session_state.pop("_oauth_url")
             st.markdown(
@@ -301,9 +258,6 @@ with tab_ml:
                         except Exception as exc:
                             st.error(f"Erro: {exc}")
 
-    # ------------------------------------------------------------------
-    # MODO ARQUIVO (fallback)
-    # ------------------------------------------------------------------
     else:
         col1, col2 = st.columns(2)
         with col1:
@@ -350,10 +304,6 @@ with tab_ml:
                                 st.text(msg)
                     except Exception as exc:
                         st.error(f"Erro ao processar: {exc}")
-
-# =============================================================================
-# ABA SHOPEE
-# =============================================================================
 
 with tab_sp:
     st.subheader("Consolidar Shopee")
