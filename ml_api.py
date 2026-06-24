@@ -1,13 +1,5 @@
 """
 ml_api.py — Integração OAuth + Orders com a API do Mercado Livre.
-
-Funções públicas:
-  get_auth_url(client_id, redirect_uri, state) -> str
-  exchange_code(client_id, client_secret, code, redirect_uri) -> dict
-  refresh_access_token(client_id, client_secret, refresh_tok) -> dict
-  get_user_id(access_token) -> int
-  fetch_orders(access_token, seller_id, date_from, date_to) -> list
-  orders_to_excel_bytes(orders, empresa) -> bytes
 """
 
 import base64
@@ -130,8 +122,11 @@ def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str
     orders  = []
     offset  = 0
     limit   = 50
+    MAX_OFFSET = 9950  # limite da API do ML é 10000
 
     while True:
+        if offset > MAX_OFFSET:
+            break
         url = (
             f"{API_BASE}/orders/search"
             f"?seller={seller_id}"
