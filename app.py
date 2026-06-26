@@ -8,10 +8,250 @@ import shopee_core
 REDIRECT_URI = "https://fechamento-ke6rzovxkuvjudzaug6pyu.streamlit.app/"
 
 st.set_page_config(
-    page_title="Consolidador de Fechamento",
-    page_icon="📊",
+    page_title="Fechamento · ML & Shopee",
+    page_icon="🛒",
     layout="centered",
 )
+
+# =============================================================================
+# CSS GLOBAL — esconde chrome do Streamlit e aplica design premium
+# =============================================================================
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ── Esconder elementos padrão do Streamlit ── */
+#MainMenu, footer, [data-testid="stToolbar"],
+[data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+  display: none !important;
+}
+[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+
+/* ── Fonte global ── */
+html, body, [class*="css"] {
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+/* ── Padding do container principal ── */
+.block-container {
+  padding-top: 0 !important;
+  padding-bottom: 48px !important;
+  max-width: 820px !important;
+}
+
+/* ─────────────────────────────────────────────
+   HEADER CUSTOMIZADO
+───────────────────────────────────────────── */
+.app-header {
+  background: #1A1F71;
+  margin: -1rem -1rem 0 -1rem;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-header-logo {
+  background: #FFE600;
+  border-radius: 8px;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.app-header-name {
+  font-size: 15px; font-weight: 700;
+  color: #fff; line-height: 1.1; display: block;
+}
+.app-header-sub {
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  display: block; letter-spacing: 0.2px;
+}
+.app-header-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  font-size: 12px; font-weight: 500;
+  color: rgba(255,255,255,0.65);
+}
+.pill-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.pill-dot.all  { background: #10B981; box-shadow: 0 0 0 2px rgba(16,185,129,.3); }
+.pill-dot.some { background: #FFE600; }
+.pill-dot.none { background: #64748B; }
+
+/* ─────────────────────────────────────────────
+   HERO BANNER
+───────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(120deg,#FFE600 0%,#FFCB00 60%,#FFB800 100%);
+  border-radius: 16px;
+  padding: 26px 30px;
+  margin: 22px 0 24px;
+  display: flex; align-items: center; gap: 18px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(255,200,0,.22);
+}
+.hero::after {
+  content: "";
+  position: absolute; right: -20px; top: -20px;
+  width: 150px; height: 150px;
+  background: rgba(255,255,255,.13);
+  border-radius: 50%;
+}
+.hero-icon { font-size: 50px; line-height: 1; flex-shrink: 0; position: relative; z-index: 1; }
+.hero-copy  { position: relative; z-index: 1; }
+.hero-title { font-size: 20px; font-weight: 800; color: #1A1F71; letter-spacing: -.3px; margin: 0 0 4px; }
+.hero-sub   { font-size: 13px; color: rgba(26,31,113,.65); margin: 0; }
+
+/* ─────────────────────────────────────────────
+   SECTION LABEL
+───────────────────────────────────────────── */
+.section-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: #94A3B8;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.section-lbl::after { content: ""; flex: 1; height: 1px; background: #E2E8F0; }
+
+/* ─────────────────────────────────────────────
+   ACCOUNT CARDS
+───────────────────────────────────────────── */
+.acc-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 2px solid #E2E8F0;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  margin-bottom: 4px;
+}
+.acc-card.on {
+  border-color: #10B981;
+  box-shadow: 0 0 0 4px rgba(16,185,129,.09), 0 2px 8px rgba(0,0,0,.06);
+}
+.acc-top {
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 16px 20px 13px;
+}
+.acc-title-row {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 9px;
+}
+.acc-name { font-size: 17px; font-weight: 800; color: #1A1F71; letter-spacing: -.2px; }
+.ml-tag {
+  background: #FFE600; color: #1A1F71;
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px;
+}
+.acc-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+}
+.acc-badge.on  { background: #ECFDF5; color: #065F46; }
+.acc-badge.off { background: #F1F5F9; color: #94A3B8; }
+.bdot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.bdot.g { background: #10B981; }
+.bdot.s { background: #CBD5E1; }
+
+.acc-body { padding: 18px 20px 4px; min-height: 90px; }
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid #F1F5F9;
+}
+.info-row:last-child { border-bottom: none; }
+.info-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: .5px; color: #94A3B8; }
+.info-val { font-size: 13px; font-weight: 600; color: #334155; }
+.acc-empty { text-align: center; padding: 12px 0 18px; }
+.empty-ico  { font-size: 34px; display: block; margin-bottom: 7px; }
+.empty-txt  { font-size: 13px; color: #94A3B8; }
+.acc-foot { padding: 13px 20px 18px; }
+
+/* ─────────────────────────────────────────────
+   PERÍODO / FORM
+───────────────────────────────────────────── */
+.period-wrap {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  padding: 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+
+/* ─────────────────────────────────────────────
+   STREAMLIT WIDGETS — ajuste de estilo
+───────────────────────────────────────────── */
+/* Botões primários */
+[data-testid="stButton"] > button[kind="primary"] {
+  background: #1A1F71 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-family: 'Inter', sans-serif !important;
+  transition: all .18s ease !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:hover {
+  background: #252ca0 !important;
+  box-shadow: 0 4px 14px rgba(26,31,113,.35) !important;
+  transform: translateY(-1px) !important;
+}
+/* Botões secundários */
+[data-testid="stButton"] > button[kind="secondary"] {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+/* Date inputs */
+[data-testid="stDateInput"] input {
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+/* File uploader */
+[data-testid="stFileUploader"] {
+  border-radius: 10px !important;
+}
+/* Tabs */
+[data-baseweb="tab-list"] {
+  border-radius: 10px !important;
+  background: #F1F5F9 !important;
+  padding: 4px !important;
+  gap: 2px !important;
+}
+[data-baseweb="tab"] {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+[aria-selected="true"][data-baseweb="tab"] {
+  background: #fff !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1) !important;
+}
+/* Radio */
+[data-testid="stRadio"] label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+/* Divider */
+hr { border-color: #E2E8F0 !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# =============================================================================
+# SUPABASE
+# =============================================================================
 
 @st.cache_resource
 def _get_supabase():
@@ -23,7 +263,6 @@ def _get_supabase():
     except Exception:
         return None
 
-
 def _db_save_rt(account: str, refresh_token: str):
     sb = _get_supabase()
     if not sb or not refresh_token:
@@ -34,7 +273,6 @@ def _db_save_rt(account: str, refresh_token: str):
         ).execute()
     except Exception:
         pass
-
 
 def _db_load_rt(account: str) -> str:
     sb = _get_supabase()
@@ -52,60 +290,56 @@ def _db_load_rt(account: str) -> str:
     except Exception:
         return ""
 
+# =============================================================================
+# OAUTH CALLBACK
+# =============================================================================
 
 def _handle_oauth_callback():
     code  = st.query_params.get("code")
     state = st.query_params.get("state", "")
-
     if not code:
         return
-
     parts    = state.split("|", 1)
     account  = parts[0]
     verifier = parts[1] if len(parts) > 1 else ""
-
     if account == "ricapet" and "ml_token_ricapet" in st.session_state:
-        st.query_params.clear()
-        return
+        st.query_params.clear(); return
     if account == "thapets" and "ml_token_thapets" in st.session_state:
-        st.query_params.clear()
-        return
-
+        st.query_params.clear(); return
     try:
-        if account == "ricapet":
-            cfg    = st.secrets["ml_ricapet"]
+        if account in ("ricapet", "thapets"):
+            cfg    = st.secrets[f"ml_{account}"]
             tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
                                           code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_ricapet"]  = tokens
-            st.session_state["ml_userid_ricapet"] = ml_api.get_user_id(tokens["access_token"])
-            _db_save_rt("ricapet", tokens.get("refresh_token", ""))
-        elif account == "thapets":
-            cfg    = st.secrets["ml_thapets"]
-            tokens = ml_api.exchange_code(cfg["client_id"], cfg["client_secret"],
-                                          code, REDIRECT_URI, verifier)
-            st.session_state["ml_token_thapets"]  = tokens
-            st.session_state["ml_userid_thapets"] = ml_api.get_user_id(tokens["access_token"])
-            _db_save_rt("thapets", tokens.get("refresh_token", ""))
+            info   = ml_api.get_user_info(tokens["access_token"])
+            st.session_state[f"ml_token_{account}"]    = tokens
+            st.session_state[f"ml_userid_{account}"]   = info["id"]
+            st.session_state[f"ml_nickname_{account}"] = info["nickname"]
+            _db_save_rt(account, tokens.get("refresh_token", ""))
     except Exception as e:
         st.session_state["ml_auth_error"] = str(e)
-
     st.query_params.clear()
 
 _handle_oauth_callback()
 
+# =============================================================================
+# AUTO-LOGIN
+# =============================================================================
 
 def _auto_authenticate():
-    for account, secret_key in [("ricapet", "ml_ricapet"), ("thapets", "ml_thapets")]:
+    for account in ("ricapet", "thapets"):
         if f"ml_token_{account}" in st.session_state:
             continue
         try:
-            cfg = st.secrets[secret_key]
+            cfg = st.secrets[f"ml_{account}"]
             rt  = _db_load_rt(account) or cfg.get("refresh_token", "")
             if not rt:
                 continue
             tokens = ml_api.refresh_access_token(cfg["client_id"], cfg["client_secret"], rt)
-            st.session_state[f"ml_token_{account}"]  = tokens
-            st.session_state[f"ml_userid_{account}"] = ml_api.get_user_id(tokens["access_token"])
+            info   = ml_api.get_user_info(tokens["access_token"])
+            st.session_state[f"ml_token_{account}"]    = tokens
+            st.session_state[f"ml_userid_{account}"]   = info["id"]
+            st.session_state[f"ml_nickname_{account}"] = info["nickname"]
             new_rt = tokens.get("refresh_token", "")
             if new_rt and new_rt != rt:
                 _db_save_rt(account, new_rt)
@@ -114,70 +348,157 @@ def _auto_authenticate():
 
 _auto_authenticate()
 
-st.title("📊 Consolidador de Fechamento")
-st.caption("Mercado Livre e Shopee — Ricapet & Thapets")
+# =============================================================================
+# HEADER CUSTOMIZADO
+# =============================================================================
 
-tab_ml, tab_sp = st.tabs(["🛒 Mercado Livre", "🏪 Shopee"])
+r_conn = "ml_token_ricapet" in st.session_state
+t_conn = "ml_token_thapets" in st.session_state
+
+if r_conn and t_conn:
+    dot_cls, pill_txt = "all",  "Ambas conectadas"
+elif r_conn or t_conn:
+    dot_cls, pill_txt = "some", "1 conta conectada"
+else:
+    dot_cls, pill_txt = "none", "Nenhuma conta conectada"
+
+st.markdown(f"""
+<div class="app-header">
+  <div class="app-header-brand">
+    <div class="app-header-logo">🛒</div>
+    <div>
+      <span class="app-header-name">Fechamento</span>
+      <span class="app-header-sub">Mercado Livre &amp; Shopee</span>
+    </div>
+  </div>
+  <div class="app-header-pill">
+    <span class="pill-dot {dot_cls}"></span>
+    {pill_txt}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# =============================================================================
+# TABS
+# =============================================================================
+
+tab_ml, tab_sp = st.tabs(["🛒  Mercado Livre", "🏪  Shopee"])
+
+# =============================================================================
+# ABA MERCADO LIVRE
+# =============================================================================
 
 with tab_ml:
-    st.subheader("Consolidar Mercado Livre")
 
     modo_ml = st.radio(
-        "Modo",
-        ["🔗 Buscar direto da plataforma (API)", "📂 Enviar arquivo manualmente"],
+        "modo",
+        ["🔗  Buscar direto da API", "📂  Enviar arquivo manualmente"],
         horizontal=True,
         label_visibility="collapsed",
     )
 
-    if modo_ml == "🔗 Buscar direto da plataforma (API)":
+    # ── MODO API ────────────────────────────────────────────────────────────────
+    if modo_ml == "🔗  Buscar direto da API":
 
         if st.session_state.get("ml_auth_error"):
             st.error(f"Erro na autenticação: {st.session_state.pop('ml_auth_error')}")
 
-        col1, col2 = st.columns(2)
+        # Hero
+        st.markdown("""
+        <div class="hero">
+          <div class="hero-icon">🛒</div>
+          <div class="hero-copy">
+            <p class="hero-title">Mercado Livre — Conexão de Contas</p>
+            <p class="hero-sub">Conecte Ricapet e Thapets para buscar pedidos direto da plataforma</p>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with col1:
-            st.markdown("**Ricapet**")
-            if "ml_token_ricapet" in st.session_state:
-                st.success("✅ Conectado")
-                if st.button("Desconectar", key="disc_ricapet"):
-                    del st.session_state["ml_token_ricapet"]
-                    del st.session_state["ml_userid_ricapet"]
-                    st.rerun()
-            else:
-                try:
-                    cfg = st.secrets["ml_ricapet"]
-                    verifier, challenge = ml_api.generate_pkce()
-                    state_r = f"ricapet|{verifier}"
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
-                                              state=state_r, code_challenge=challenge)
-                    if st.button("🔗 Conectar conta Ricapet", key="btn_conn_ricapet", type="primary"):
-                        st.session_state["_oauth_url"] = url
+        # Section label
+        st.markdown('<div class="section-lbl">Contas conectadas</div>', unsafe_allow_html=True)
+
+        # Cards
+        col1, col2 = st.columns(2, gap="medium")
+
+        for col, account, label in [
+            (col1, "ricapet", "Ricapet"),
+            (col2, "thapets", "Thapets"),
+        ]:
+            with col:
+                connected = f"ml_token_{account}" in st.session_state
+                nickname  = st.session_state.get(f"ml_nickname_{account}", "—")
+                user_id   = st.session_state.get(f"ml_userid_{account}", "—")
+                card_cls  = "on" if connected else ""
+
+                if connected:
+                    st.markdown(f"""
+                    <div class="acc-card {card_cls}">
+                      <div class="acc-top">
+                        <div class="acc-title-row">
+                          <span class="acc-name">{label}</span>
+                          <span class="ml-tag">ML</span>
+                        </div>
+                        <span class="acc-badge on">
+                          <span class="bdot g"></span>Conectada
+                        </span>
+                      </div>
+                      <div class="acc-body">
+                        <div class="info-row">
+                          <span class="info-lbl">Usuário</span>
+                          <span class="info-val">{nickname}</span>
+                        </div>
+                        <div class="info-row">
+                          <span class="info-lbl">ID</span>
+                          <span class="info-val">{user_id}</span>
+                        </div>
+                      </div>
+                      <div class="acc-foot"></div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("Desconectar", key=f"disc_{account}",
+                                 use_container_width=True):
+                        for k in (f"ml_token_{account}",
+                                  f"ml_userid_{account}",
+                                  f"ml_nickname_{account}"):
+                            st.session_state.pop(k, None)
                         st.rerun()
-                except (KeyError, FileNotFoundError):
-                    st.warning("Credenciais ml_ricapet não configuradas nos Secrets.")
+                else:
+                    st.markdown(f"""
+                    <div class="acc-card">
+                      <div class="acc-top">
+                        <div class="acc-title-row">
+                          <span class="acc-name">{label}</span>
+                          <span class="ml-tag">ML</span>
+                        </div>
+                        <span class="acc-badge off">
+                          <span class="bdot s"></span>Desconectada
+                        </span>
+                      </div>
+                      <div class="acc-body">
+                        <div class="acc-empty">
+                          <span class="empty-ico">🔓</span>
+                          <span class="empty-txt">Conta não conectada</span>
+                        </div>
+                      </div>
+                      <div class="acc-foot"></div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    try:
+                        cfg = st.secrets[f"ml_{account}"]
+                        verifier, challenge = ml_api.generate_pkce()
+                        url = ml_api.get_auth_url(
+                            cfg["client_id"], REDIRECT_URI,
+                            state=f"{account}|{verifier}",
+                            code_challenge=challenge,
+                        )
+                        if st.button(f"🔗  Conectar {label}", key=f"btn_{account}",
+                                     type="primary", use_container_width=True):
+                            st.session_state["_oauth_url"] = url
+                            st.rerun()
+                    except (KeyError, FileNotFoundError):
+                        st.warning(f"Credenciais ml_{account} não configuradas.")
 
-        with col2:
-            st.markdown("**Thapets**")
-            if "ml_token_thapets" in st.session_state:
-                st.success("✅ Conectado")
-                if st.button("Desconectar", key="disc_thapets"):
-                    del st.session_state["ml_token_thapets"]
-                    del st.session_state["ml_userid_thapets"]
-                    st.rerun()
-            else:
-                try:
-                    cfg = st.secrets["ml_thapets"]
-                    verifier, challenge = ml_api.generate_pkce()
-                    state_t = f"thapets|{verifier}"
-                    url = ml_api.get_auth_url(cfg["client_id"], REDIRECT_URI,
-                                              state=state_t, code_challenge=challenge)
-                    if st.button("🔗 Conectar conta Thapets", key="btn_conn_thapets", type="primary"):
-                        st.session_state["_oauth_url"] = url
-                        st.rerun()
-                except (KeyError, FileNotFoundError):
-                    st.warning("Credenciais ml_thapets não configuradas nos Secrets.")
-
+        # Redirect OAuth
         if "_oauth_url" in st.session_state:
             oauth_url = st.session_state.pop("_oauth_url")
             st.markdown(
@@ -186,22 +507,29 @@ with tab_ml:
             )
             st.stop()
 
-        tem_ricapet = "ml_token_ricapet" in st.session_state
-        tem_thapets = "ml_token_thapets" in st.session_state
+        # ── Buscar pedidos ───────────────────────────────────────────────────────
+        tem_r = "ml_token_ricapet" in st.session_state
+        tem_t = "ml_token_thapets" in st.session_state
 
-        if tem_ricapet or tem_thapets:
+        if tem_r or tem_t:
             st.divider()
+            st.markdown('<div class="section-lbl">Período de busca</div>',
+                        unsafe_allow_html=True)
 
             hoje = date.today()
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                data_ini = st.date_input("De", value=hoje.replace(day=1), key="ml_api_ini")
-            with col_d2:
-                data_fim = st.date_input("Até", value=hoje, key="ml_api_fim")
-
-            tabela_api = st.file_uploader("TABELA_AUXILIAR.xlsx", type="xlsx", key="ml_api_aux")
-
-            btn_api = st.button("🔍 Buscar e Consolidar", type="primary", key="btn_ml_api")
+            with st.container():
+                st.markdown('<div class="period-wrap">', unsafe_allow_html=True)
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    data_ini = st.date_input("De", value=hoje.replace(day=1),
+                                             key="ml_api_ini")
+                with col_d2:
+                    data_fim = st.date_input("Até", value=hoje, key="ml_api_fim")
+                tabela_api = st.file_uploader("TABELA_AUXILIAR.xlsx",
+                                              type="xlsx", key="ml_api_aux")
+                btn_api = st.button("🔍  Buscar e Consolidar", type="primary",
+                                    key="btn_ml_api", use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
             if btn_api:
                 if not tabela_api:
@@ -215,74 +543,62 @@ with tab_ml:
                             to_str   = f"{data_fim}T23:59:59.000-03:00"
                             arquivos = []
                             total    = 0
-
-                            if tem_ricapet:
-                                tok = st.session_state["ml_token_ricapet"]
-                                uid = st.session_state["ml_userid_ricapet"]
-                                st.info(f"🔍 Ricapet user_id: {uid}")
-                                ords = ml_api.fetch_orders(tok["access_token"], uid, from_str, to_str)
-                                st.info(f"Ricapet: {len(ords)} pedido(s) encontrado(s)")
+                            if tem_r:
+                                tok  = st.session_state["ml_token_ricapet"]
+                                uid  = st.session_state["ml_userid_ricapet"]
+                                ords = ml_api.fetch_orders(tok["access_token"],
+                                                           uid, from_str, to_str)
+                                st.info(f"Ricapet: {len(ords)} pedido(s)")
                                 if ords:
                                     arquivos.append(("relatorio_736787693.xlsx",
                                                      ml_api.orders_to_excel_bytes(ords, "Ricapet")))
                                     total += len(ords)
-
-                            if tem_thapets:
-                                tok = st.session_state["ml_token_thapets"]
-                                uid = st.session_state["ml_userid_thapets"]
-                                st.info(f"🔍 Thapets user_id: {uid}")
-                                ords = ml_api.fetch_orders(tok["access_token"], uid, from_str, to_str)
-                                st.info(f"Thapets: {len(ords)} pedido(s) encontrado(s)")
+                            if tem_t:
+                                tok  = st.session_state["ml_token_thapets"]
+                                uid  = st.session_state["ml_userid_thapets"]
+                                ords = ml_api.fetch_orders(tok["access_token"],
+                                                           uid, from_str, to_str)
+                                st.info(f"Thapets: {len(ords)} pedido(s)")
                                 if ords:
                                     arquivos.append(("relatorio_1139210125.xlsx",
                                                      ml_api.orders_to_excel_bytes(ords, "Thapets")))
                                     total += len(ords)
-
                             if not arquivos:
-                                st.warning("Nenhum pedido encontrado no período selecionado.")
+                                st.warning("Nenhum pedido encontrado no período.")
                             else:
-                                tabela_bytes = tabela_api.read()
+                                tabela_bytes     = tabela_api.read()
                                 xlsx_bytes, logs = ml_core.processar(arquivos, tabela_bytes)
-
-                                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                st.success(f"Consolidado! {total} pedido(s) processado(s).")
+                                ts               = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                st.success(f"✅  Consolidado! {total} pedido(s) processado(s).")
                                 st.download_button(
-                                    label="⬇️  Baixar Excel gerado",
+                                    "⬇️  Baixar Excel gerado",
                                     data=xlsx_bytes,
-                                    file_name=f"MercadoLivre_Consolidado_{ts}.xlsx",
+                                    file_name=f"MercadoLivre_{ts}.xlsx",
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key="dl_ml_api",
                                 )
                                 with st.expander("Log de processamento"):
                                     for msg in logs:
                                         st.text(msg)
-
                         except Exception as exc:
                             st.error(f"Erro: {exc}")
 
+    # ── MODO ARQUIVO ─────────────────────────────────────────────────────────────
     else:
         col1, col2 = st.columns(2)
         with col1:
             relatorios_ml = st.file_uploader(
-                "Relatórios ML (.xlsx)",
-                type="xlsx",
-                accept_multiple_files=True,
-                key="ml_rel",
-                help="Arquivos baixados do Mercado Livre "
-                     "(devem conter 736787693 ou 1139210125 no nome).",
+                "Relatórios ML (.xlsx)", type="xlsx",
+                accept_multiple_files=True, key="ml_rel",
+                help="Arquivos com 736787693 ou 1139210125 no nome.",
             )
         with col2:
-            tabela_ml = st.file_uploader(
-                "TABELA_AUXILIAR.xlsx",
-                type="xlsx",
-                key="ml_aux",
-            )
-
+            tabela_ml = st.file_uploader("TABELA_AUXILIAR.xlsx",
+                                         type="xlsx", key="ml_aux")
         btn_ml = st.button("Consolidar Mercado Livre", type="primary", key="btn_ml")
-
         if btn_ml:
             if not relatorios_ml:
-                st.error("Selecione pelo menos um relatório do Mercado Livre.")
+                st.error("Selecione pelo menos um relatório.")
             elif not tabela_ml:
                 st.error("Selecione a TABELA_AUXILIAR.xlsx.")
             else:
@@ -291,46 +607,40 @@ with tab_ml:
                         arquivos     = [(f.name, f.read()) for f in relatorios_ml]
                         tabela_bytes = tabela_ml.read()
                         xlsx_bytes, logs = ml_core.processar(arquivos, tabela_bytes)
-
                         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        st.success(f"Consolidado! {len(arquivos)} arquivo(s) processado(s).")
+                        st.success(f"✅  Consolidado! {len(arquivos)} arquivo(s).")
                         st.download_button(
-                            label="⬇️  Baixar Excel gerado",
+                            "⬇️  Baixar Excel gerado",
                             data=xlsx_bytes,
-                            file_name=f"MercadoLivre_Consolidado_{ts}.xlsx",
+                            file_name=f"MercadoLivre_{ts}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key="dl_ml",
                         )
-                        with st.expander("Log de processamento"):
-                            for msg in logs:
-                                st.text(msg)
+                        with st.expander("Log"):
+                            for msg in logs: st.text(msg)
                     except Exception as exc:
-                        st.error(f"Erro ao processar: {exc}")
+                        st.error(f"Erro: {exc}")
+
+# =============================================================================
+# ABA SHOPEE
+# =============================================================================
 
 with tab_sp:
     st.subheader("Consolidar Shopee")
-
     col1, col2 = st.columns(2)
     with col1:
         relatorios_sp = st.file_uploader(
-            "Relatórios Shopee (.xlsx)",
-            type="xlsx",
-            accept_multiple_files=True,
-            key="sp_rel",
-            help="Arquivos baixados da Shopee (nome deve começar com 'order.all.').",
+            "Relatórios Shopee (.xlsx)", type="xlsx",
+            accept_multiple_files=True, key="sp_rel",
+            help="Nome deve começar com 'order.all.'",
         )
     with col2:
-        tabela_sp = st.file_uploader(
-            "TABELA_AUXILIAR.xlsx",
-            type="xlsx",
-            key="sp_aux",
-        )
-
+        tabela_sp = st.file_uploader("TABELA_AUXILIAR.xlsx",
+                                     type="xlsx", key="sp_aux")
     btn_sp = st.button("Consolidar Shopee", type="primary", key="btn_sp")
-
     if btn_sp:
         if not relatorios_sp:
-            st.error("Selecione pelo menos um relatório da Shopee.")
+            st.error("Selecione pelo menos um relatório.")
         elif not tabela_sp:
             st.error("Selecione a TABELA_AUXILIAR.xlsx.")
         else:
@@ -339,18 +649,16 @@ with tab_sp:
                     arquivos     = [(f.name, f.read()) for f in relatorios_sp]
                     tabela_bytes = tabela_sp.read()
                     xlsx_bytes, logs = shopee_core.processar(arquivos, tabela_bytes)
-
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    st.success("Consolidado com sucesso!")
+                    st.success("✅  Consolidado com sucesso!")
                     st.download_button(
-                        label="⬇️  Baixar Excel gerado",
+                        "⬇️  Baixar Excel gerado",
                         data=xlsx_bytes,
-                        file_name=f"Shopee_Consolidado_{ts}.xlsx",
+                        file_name=f"Shopee_{ts}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="dl_sp",
                     )
-                    with st.expander("Log de processamento"):
-                        for msg in logs:
-                            st.text(msg)
+                    with st.expander("Log"):
+                        for msg in logs: st.text(msg)
                 except Exception as exc:
-                    st.error(f"Erro ao processar: {exc}")
+                    st.error(f"Erro: {exc}")
