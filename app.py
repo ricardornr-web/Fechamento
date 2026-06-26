@@ -181,6 +181,42 @@ html, body, [class*="css"] {
 .acc-foot { padding: 13px 20px 18px; }
 
 /* ─────────────────────────────────────────────
+   PAINEL UNIFICADO DE CONTAS (combo)
+───────────────────────────────────────────── */
+.acc-panel {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  margin-bottom: 12px;
+}
+.acc-row-item {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #F1F5F9;
+  gap: 12px;
+}
+.acc-row-item:last-child { border-bottom: none; }
+.acc-row-item.connected  { background: #FAFFFE; }
+.acc-row-left {
+  display: flex; align-items: center; gap: 10px; flex: 1;
+}
+.acc-row-name {
+  font-size: 15px; font-weight: 700; color: #1A1F71; letter-spacing: -.1px;
+}
+.acc-nick {
+  font-size: 12px; font-weight: 500; color: #64748B;
+}
+.acc-row-tag {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .4px; padding: 3px 9px; border-radius: 20px;
+  background: #F1F5F9; color: #94A3B8; flex-shrink: 0;
+}
+.acc-row-tag.connected { background: #ECFDF5; color: #065F46; }
+
+/* ─────────────────────────────────────────────
    PERÍODO / FORM
 ───────────────────────────────────────────── */
 .period-wrap {
@@ -417,86 +453,84 @@ with tab_ml:
         # Section label
         st.markdown('<div class="section-lbl">Contas conectadas</div>', unsafe_allow_html=True)
 
-        # Cards
-        col1, col2 = st.columns(2, gap="medium")
+        # ── Painel unificado com status das duas contas ──────────────────────
+        contas = [
+            ("ricapet", "Ricapet"),
+            ("thapets", "Thapets"),
+        ]
+        rows_html = ""
+        for account, label in contas:
+            connected = f"ml_token_{account}" in st.session_state
+            nickname  = st.session_state.get(f"ml_nickname_{account}", "")
+            if connected:
+                detalhe = f'<span class="acc-nick">@{nickname}</span>' if nickname else ""
+                rows_html += f"""
+                <div class="acc-row-item connected">
+                  <div class="acc-row-left">
+                    <span class="bdot g"></span>
+                    <span class="acc-row-name">{label}</span>
+                    {detalhe}
+                  </div>
+                  <span class="acc-row-tag connected">Conectada</span>
+                </div>"""
+            else:
+                rows_html += f"""
+                <div class="acc-row-item">
+                  <div class="acc-row-left">
+                    <span class="bdot s"></span>
+                    <span class="acc-row-name">{label}</span>
+                  </div>
+                  <span class="acc-row-tag">Desconectada</span>
+                </div>"""
 
-        for col, account, label in [
-            (col1, "ricapet", "Ricapet"),
-            (col2, "thapets", "Thapets"),
-        ]:
-            with col:
-                connected = f"ml_token_{account}" in st.session_state
-                nickname  = st.session_state.get(f"ml_nickname_{account}", "—")
-                user_id   = st.session_state.get(f"ml_userid_{account}", "—")
-                card_cls  = "on" if connected else ""
+        st.markdown(f'<div class="acc-panel">{rows_html}</div>',
+                    unsafe_allow_html=True)
 
-                if connected:
-                    st.markdown(f"""
-                    <div class="acc-card {card_cls}">
-                      <div class="acc-top">
-                        <div class="acc-title-row">
-                          <span class="acc-name">{label}</span>
-                          <span class="ml-tag">ML</span>
-                        </div>
-                        <span class="acc-badge on">
-                          <span class="bdot g"></span>Conectada
-                        </span>
-                      </div>
-                      <div class="acc-body">
-                        <div class="info-row">
-                          <span class="info-lbl">Usuário</span>
-                          <span class="info-val">{nickname}</span>
-                        </div>
-                        <div class="info-row">
-                          <span class="info-lbl">ID</span>
-                          <span class="info-val">{user_id}</span>
-                        </div>
-                      </div>
-                      <div class="acc-foot"></div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if st.button("Desconectar", key=f"disc_{account}",
+        # ── Combo (dropdown) + botão de conectar ────────────────────────────
+        desconectadas = [label for acc, label in contas
+                         if f"ml_token_{acc}" not in st.session_state]
+
+        if desconectadas:
+            col_sel, col_btn = st.columns([3, 2], gap="small")
+            with col_sel:
+                escolha = st.selectbox(
+                    "Conta",
+                    desconectadas,
+                    label_visibility="collapsed",
+                    key="sel_conta",
+                )
+            with col_btn:
+                conectar = st.button("🔗  Conectar", type="primary",
+                                     use_container_width=True, key="btn_conectar")
+            if conectar:
+                account = escolha.lower()
+                try:
+                    cfg = st.secrets[f"ml_{account}"]
+                    verifier, challenge = ml_api.generate_pkce()
+                    url = ml_api.get_auth_url(
+                        cfg["client_id"], REDIRECT_URI,
+                        state=f"{account}|{verifier}",
+                        code_challenge=challenge,
+                    )
+                    st.session_state["_oauth_url"] = url
+                    st.rerun()
+                except (KeyError, FileNotFoundError):
+                    st.warning(f"Credenciais ml_{account} não configuradas.")
+
+        # ── Botões de desconectar ────────────────────────────────────────────
+        conectadas = [(acc, label) for acc, label in contas
+                      if f"ml_token_{acc}" in st.session_state]
+        if conectadas:
+            cols = st.columns(len(conectadas))
+            for col_d, (account, label) in zip(cols, conectadas):
+                with col_d:
+                    if st.button(f"Desconectar {label}", key=f"disc_{account}",
                                  use_container_width=True):
                         for k in (f"ml_token_{account}",
                                   f"ml_userid_{account}",
                                   f"ml_nickname_{account}"):
                             st.session_state.pop(k, None)
                         st.rerun()
-                else:
-                    st.markdown(f"""
-                    <div class="acc-card">
-                      <div class="acc-top">
-                        <div class="acc-title-row">
-                          <span class="acc-name">{label}</span>
-                          <span class="ml-tag">ML</span>
-                        </div>
-                        <span class="acc-badge off">
-                          <span class="bdot s"></span>Desconectada
-                        </span>
-                      </div>
-                      <div class="acc-body">
-                        <div class="acc-empty">
-                          <span class="empty-ico">🔓</span>
-                          <span class="empty-txt">Conta não conectada</span>
-                        </div>
-                      </div>
-                      <div class="acc-foot"></div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    try:
-                        cfg = st.secrets[f"ml_{account}"]
-                        verifier, challenge = ml_api.generate_pkce()
-                        url = ml_api.get_auth_url(
-                            cfg["client_id"], REDIRECT_URI,
-                            state=f"{account}|{verifier}",
-                            code_challenge=challenge,
-                        )
-                        if st.button(f"🔗  Conectar {label}", key=f"btn_{account}",
-                                     type="primary", use_container_width=True):
-                            st.session_state["_oauth_url"] = url
-                            st.rerun()
-                    except (KeyError, FileNotFoundError):
-                        st.warning(f"Credenciais ml_{account} não configuradas.")
 
         # Redirect OAuth
         if "_oauth_url" in st.session_state:
