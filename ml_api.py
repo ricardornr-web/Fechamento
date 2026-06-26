@@ -143,20 +143,17 @@ def get_user_id(access_token: str) -> int:
 # Busca de pedidos
 # ---------------------------------------------------------------------------
 
-def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str) -> list:
-    """
-    date_from / date_to: strings ISO8601, ex. "2024-01-01T00:00:00.000-03:00"
-    Retorna lista de dicts de pedidos da API do ML.
-    """
+def _fetch_orders_by_status(access_token: str, seller_id: int,
+                             date_from: str, date_to: str, status: str) -> list:
     headers = {"Authorization": f"Bearer {access_token}"}
     orders  = []
     offset  = 0
     limit   = 50
-
     while True:
         url = (
             f"{API_BASE}/orders/search"
             f"?seller={seller_id}"
+            f"&order.status={status}"
             f"&date_created.from={date_from}"
             f"&date_created.to={date_to}"
             f"&sort=date_asc"
@@ -173,8 +170,24 @@ def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str
         offset += len(results)
         if offset >= total:
             break
-
     return orders
+
+
+def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str) -> list:
+    """
+    date_from / date_to: strings ISO8601, ex. "2024-01-01T00:00:00.000-03:00"
+    Retorna lista de dicts de pedidos da API do ML (paid + cancelled).
+    """
+    paid      = _fetch_orders_by_status(access_token, seller_id, date_from, date_to, "paid")
+    cancelled = _fetch_orders_by_status(access_token, seller_id, date_from, date_to, "cancelled")
+    seen_ids  = set()
+    result    = []
+    for order in paid + cancelled:
+        oid = order.get("id")
+        if oid not in seen_ids:
+            seen_ids.add(oid)
+            result.append(order)
+    return result
 
 
 # ---------------------------------------------------------------------------
