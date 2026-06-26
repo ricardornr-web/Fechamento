@@ -286,6 +286,33 @@ hr { border-color: #E2E8F0 !important; }
 """, unsafe_allow_html=True)
 
 # =============================================================================
+# CACHE COMPARTILHADO — persiste tokens entre redirects OAuth (mesma instância)
+# =============================================================================
+
+@st.cache_resource
+def _shared_tokens() -> dict:
+    """Dict compartilhado entre todas as sessões Streamlit no mesmo processo."""
+    return {}
+
+def _cache_save(account: str, tokens: dict, user_id, nickname: str):
+    _shared_tokens()[account] = {
+        "tokens": tokens,
+        "user_id": user_id,
+        "nickname": nickname,
+    }
+
+def _cache_restore():
+    """Restaura tokens do cache compartilhado para session_state atual."""
+    for account, data in _shared_tokens().items():
+        if f"ml_token_{account}" not in st.session_state:
+            st.session_state[f"ml_token_{account}"]    = data["tokens"]
+            st.session_state[f"ml_userid_{account}"]   = data["user_id"]
+            st.session_state[f"ml_nickname_{account}"] = data["nickname"]
+
+def _cache_remove(account: str):
+    _shared_tokens().pop(account, None)
+
+# =============================================================================
 # SUPABASE
 # =============================================================================
 
@@ -353,6 +380,7 @@ def _handle_oauth_callback():
             st.session_state[f"ml_token_{account}"]    = tokens
             st.session_state[f"ml_userid_{account}"]   = info["id"]
             st.session_state[f"ml_nickname_{account}"] = info["nickname"]
+            _cache_save(account, tokens, info["id"], info["nickname"])
             _db_save_rt(account, tokens.get("refresh_token", ""))
             # Se veio pedido de conectar a próxima conta, enfileira
             if next_acc in ("ricapet", "thapets") and next_acc != account:
@@ -383,6 +411,10 @@ if "_connect_next" in st.session_state:
 # =============================================================================
 
 def _auto_authenticate():
+    # 1ª prioridade: cache compartilhado (persiste entre redirects OAuth)
+    _cache_restore()
+
+    # 2ª prioridade: Supabase (persiste entre reinicializações do servidor)
     for account in ("ricapet", "thapets"):
         if f"ml_token_{account}" in st.session_state:
             continue
@@ -396,6 +428,7 @@ def _auto_authenticate():
             st.session_state[f"ml_token_{account}"]    = tokens
             st.session_state[f"ml_userid_{account}"]   = info["id"]
             st.session_state[f"ml_nickname_{account}"] = info["nickname"]
+            _cache_save(account, tokens, info["id"], info["nickname"])
             new_rt = tokens.get("refresh_token", "")
             if new_rt and new_rt != rt:
                 _db_save_rt(account, new_rt)
@@ -566,6 +599,7 @@ with tab_ml:
                                   f"ml_userid_{account}",
                                   f"ml_nickname_{account}"):
                             st.session_state.pop(k, None)
+                        _cache_remove(account)
                         st.rerun()
 
         # Redirect OAuth
