@@ -335,9 +335,11 @@ def _handle_oauth_callback():
     state = st.query_params.get("state", "")
     if not code:
         return
-    parts    = state.split("|", 1)
+    # state format: "account|verifier" or "account|verifier|next_account"
+    parts    = state.split("|")
     account  = parts[0]
     verifier = parts[1] if len(parts) > 1 else ""
+    next_acc = parts[2] if len(parts) > 2 else ""
     if account == "ricapet" and "ml_token_ricapet" in st.session_state:
         st.query_params.clear(); return
     if account == "thapets" and "ml_token_thapets" in st.session_state:
@@ -352,11 +354,29 @@ def _handle_oauth_callback():
             st.session_state[f"ml_userid_{account}"]   = info["id"]
             st.session_state[f"ml_nickname_{account}"] = info["nickname"]
             _db_save_rt(account, tokens.get("refresh_token", ""))
+            # Se veio pedido de conectar a próxima conta, enfileira
+            if next_acc in ("ricapet", "thapets") and next_acc != account:
+                st.session_state["_connect_next"] = next_acc
     except Exception as e:
         st.session_state["ml_auth_error"] = str(e)
     st.query_params.clear()
 
 _handle_oauth_callback()
+
+# Auto-redirect para a próxima conta (fluxo "Ambas as contas")
+if "_connect_next" in st.session_state:
+    _next = st.session_state.pop("_connect_next")
+    if f"ml_token_{_next}" not in st.session_state:
+        try:
+            _cfg = st.secrets[f"ml_{_next}"]
+            _ver, _chal = ml_api.generate_pkce()
+            st.session_state["_oauth_url"] = ml_api.get_auth_url(
+                _cfg["client_id"], REDIRECT_URI,
+                state=f"{_next}|{_ver}",
+                code_challenge=_chal,
+            )
+        except Exception:
+            pass
 
 # =============================================================================
 # AUTO-LOGIN
@@ -487,15 +507,19 @@ with tab_ml:
                     unsafe_allow_html=True)
 
         # ── Combo (dropdown) + botão de conectar ────────────────────────────
-        desconectadas = [label for acc, label in contas
-                         if f"ml_token_{acc}" not in st.session_state]
+        desconectadas_acc = [(acc, lbl) for acc, lbl in contas
+                             if f"ml_token_{acc}" not in st.session_state]
 
-        if desconectadas:
+        if desconectadas_acc:
+            opcoes_labels = [lbl for _, lbl in desconectadas_acc]
+            if len(desconectadas_acc) > 1:
+                opcoes_labels = ["Ambas as contas"] + opcoes_labels
+
             col_sel, col_btn = st.columns([3, 2], gap="small")
             with col_sel:
                 escolha = st.selectbox(
                     "Conta",
-                    desconectadas,
+                    opcoes_labels,
                     label_visibility="collapsed",
                     key="sel_conta",
                 )
@@ -503,19 +527,31 @@ with tab_ml:
                 conectar = st.button("🔗  Conectar", type="primary",
                                      use_container_width=True, key="btn_conectar")
             if conectar:
-                account = escolha.lower()
                 try:
-                    cfg = st.secrets[f"ml_{account}"]
-                    verifier, challenge = ml_api.generate_pkce()
-                    url = ml_api.get_auth_url(
-                        cfg["client_id"], REDIRECT_URI,
-                        state=f"{account}|{verifier}",
-                        code_challenge=challenge,
-                    )
+                    if escolha == "Ambas as contas":
+                        # Conecta primeiro account e passa o segundo no state
+                        first_acc, _ = desconectadas_acc[0]
+                        second_acc, _ = desconectadas_acc[1]
+                        cfg = st.secrets[f"ml_{first_acc}"]
+                        verifier, challenge = ml_api.generate_pkce()
+                        url = ml_api.get_auth_url(
+                            cfg["client_id"], REDIRECT_URI,
+                            state=f"{first_acc}|{verifier}|{second_acc}",
+                            code_challenge=challenge,
+                        )
+                    else:
+                        account = escolha.lower()
+                        cfg = st.secrets[f"ml_{account}"]
+                        verifier, challenge = ml_api.generate_pkce()
+                        url = ml_api.get_auth_url(
+                            cfg["client_id"], REDIRECT_URI,
+                            state=f"{account}|{verifier}",
+                            code_challenge=challenge,
+                        )
                     st.session_state["_oauth_url"] = url
                     st.rerun()
-                except (KeyError, FileNotFoundError):
-                    st.warning(f"Credenciais ml_{account} não configuradas.")
+                except (KeyError, FileNotFoundError) as e:
+                    st.warning(f"Credenciais não configuradas: {e}")
 
         # ── Botões de desconectar ────────────────────────────────────────────
         conectadas = [(acc, label) for acc, label in contas
