@@ -1,5 +1,13 @@
 """
 ml_api.py — Integração OAuth + Orders com a API do Mercado Livre.
+
+Funções públicas:
+  get_auth_url(client_id, redirect_uri, state) -> str
+  exchange_code(client_id, client_secret, code, redirect_uri) -> dict
+  refresh_access_token(client_id, client_secret, refresh_tok) -> dict
+  get_user_id(access_token) -> int
+  fetch_orders(access_token, seller_id, date_from, date_to) -> list
+  orders_to_excel_bytes(orders, empresa) -> bytes
 """
 
 import base64
@@ -11,6 +19,10 @@ from datetime import datetime
 import requests
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
+
+# ---------------------------------------------------------------------------
+# Constantes
+# ---------------------------------------------------------------------------
 
 OAUTH_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
@@ -28,6 +40,7 @@ STATUS_PT = {
     "refunded":           "Reembolso total",
 }
 
+# Colunas do relatório ML — na mesma ordem esperada por ml_core.py
 HEADERS_ML = [
     "N.º de venda",
     "Data da venda",
@@ -56,8 +69,12 @@ HEADERS_ML = [
     "Loja oficial",
 ]
 
+# ---------------------------------------------------------------------------
+# OAuth
+# ---------------------------------------------------------------------------
 
 def generate_pkce() -> tuple:
+    """Gera (code_verifier, code_challenge) para o fluxo PKCE."""
     verifier  = secrets.token_urlsafe(43)
     digest    = hashlib.sha256(verifier.encode()).digest()
     challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
@@ -108,30 +125,41 @@ def refresh_access_token(client_id: str, client_secret: str, refresh_tok: str) -
     return resp.json()
 
 
-def get_user_id(access_token: str) -> int:
+def get_user_info(access_token: str) -> dict:
     resp = requests.get(
         f"{API_BASE}/users/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     resp.raise_for_status()
-    return resp.json()["id"]
+    data = resp.json()
+    return {"id": data["id"], "nickname": data.get("nickname", "")}
 
+
+def get_user_id(access_token: str) -> int:
+    return get_user_info(access_token)["id"]
+
+
+# ---------------------------------------------------------------------------
+# Busca de pedidos
+# ---------------------------------------------------------------------------
 
 def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str) -> list:
+    """
+    date_from / date_to: strings ISO8601, ex. "2024-01-01T00:00:00.000-03:00"
+    Retorna lista de dicts de pedidos da API do ML.
+    """
     headers = {"Authorization": f"Bearer {access_token}"}
     orders  = []
     offset  = 0
     limit   = 50
-    MAX_OFFSET = 9950  # limite da API do ML é 10000
 
     while True:
-        if offset > MAX_OFFSET:
-            break
         url = (
             f"{API_BASE}/orders/search"
             f"?seller={seller_id}"
-            f"&date_created.from={date_from}"
-            f"&date_created.to={date_to}"
+            f"&order.status=all"
+            f"&date_closed.from={date_from}"
+            f"&date_closed.to={date_to}"
             f"&sort=date_asc"
             f"&limit={limit}&offset={offset}"
         )
@@ -149,6 +177,10 @@ def fetch_orders(access_token: str, seller_id: int, date_from: str, date_to: str
 
     return orders
 
+
+# ---------------------------------------------------------------------------
+# Conversão para Excel no formato esperado por ml_core.py
+# ---------------------------------------------------------------------------
 
 def _fmt_date(iso_str: str) -> str:
     if not iso_str:
@@ -171,6 +203,11 @@ def _variacao_str(attrs: list) -> str:
 
 
 def orders_to_excel_bytes(orders: list, empresa: str) -> bytes:
+    """
+    Converte pedidos da API do ML em bytes de Excel no formato que ml_core.py espera.
+    Pedidos com 1 item → linha simples (sem cor).
+    Pedidos com N itens → linha mãe (cor FFB7B7B7) + N linhas filho (cor FFF3F3F3).
+    """
     fill_mae   = PatternFill("solid", start_color=COR_MAE)
     fill_filho = PatternFill("solid", start_color=COR_FILHO)
     n_cols     = len(HEADERS_ML)
@@ -179,6 +216,7 @@ def orders_to_excel_bytes(orders: list, empresa: str) -> bytes:
     wb = Workbook()
     ws = wb.active
 
+    # Cabeçalho na linha 1 (ml_core busca "N.º de venda" nas linhas 1-14, coluna 1)
     for ci, h in enumerate(HEADERS_ML, 1):
         ws.cell(row=1, column=ci, value=h)
 
@@ -233,6 +271,7 @@ def orders_to_excel_bytes(orders: list, empresa: str) -> bytes:
             row_num += 1
 
         else:
+            # Linha mãe
             _common(row_num)
             ws.cell(row_num, idx["Unidades"],                             value=sum(int(it.get("quantity") or 0) for it in items))
             ws.cell(row_num, idx["Receita por produtos (BRL)"],           value=tot_rev)
@@ -243,6 +282,7 @@ def orders_to_excel_bytes(orders: list, empresa: str) -> bytes:
                 ws.cell(row_num, ci).fill = fill_mae
             row_num += 1
 
+            # Linhas filho
             for it in items:
                 item_info  = it.get("item") or {}
                 unit_price = float(it.get("unit_price") or 0)
